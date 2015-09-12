@@ -1,14 +1,16 @@
 source('taxlosslib.R')
 
+do_harvest <- F
+
 capital_gains_tax <- 0.25
 
-tickers <- c('SPY', 'GDX', 'EEM', 'EWJ')
+tickers <- c('SPY', 'GDX')
 intended_weights <- list()
 for(t in tickers)
   intended_weights[t] <- 1/length(tickers)
 start_value <- 1e6
 
-df <- multiple_ticker_close_values(tickers, 2010)
+df <- multiple_ticker_close_values(tickers, 2005)
 
 first_row <- df[1,]
 
@@ -57,8 +59,16 @@ do_reweighting <- function(date,quantities) {
   max_weight - min_weight > 0.04
 } 
 
-do_taxes <- function() {
-  format(current_date, '%m%d')=='1231'
+last_tax_year <- ""
+do_taxes <- function(date) {
+  current_year <- format(date,'%Y')
+  
+  if(current_year != last_tax_year) {
+    last_tax_year <<- current_year
+    return(TRUE)
+  }
+  
+  return(FALSE)
 }
 
 calculate_total_value <- function(quantities, prices) { 
@@ -105,32 +115,35 @@ for(index in 1:dim(df)[1]) {
   row <- df[index,]
   current_date <- row$Date
   current_quantities <- calculate_quantities(buy_history)
+  tax_time <- do_taxes(current_date) #Remembers year so can only be called once per date
   
-  if(do_reweighting(current_date, current_quantities) || do_taxes()) {
-    current_quantities <- calculate_quantities(buy_history)
-    current_weights <- calculate_weights(current_quantities, current_date)
-    total_value <- calculate_total_value(quantities, row)
-    
-    for(t in tickers) {
-      # Take losses that can be taken
-      current_price <- row[[t]]
-      history <- buy_history[[t]]
+  if(do_reweighting(current_date, current_quantities) || tax_time) {
+    if(do_harvest) {
+      current_quantities <- calculate_quantities(buy_history)
+      current_weights <- calculate_weights(current_quantities, current_date)
+      total_value <- calculate_total_value(current_quantities, row)
       
-      indices_to_remove <- NULL
-      for(idx in length(history$quantity):1) {
-        buy_price <- history$price[idx]
-        to_rebuy <- 0
-        if(buy_price >= current_price) {
-          q <- history$quantity[idx]
-          to_rebuy <- to_rebuy + q*current_price
-          indices_to_remove <- c(indices_to_remove, idx)
-          capital_gain_loss <- capital_gain_loss + q*(current_price-buy_price)
-        } else break
-      }
-      
-      if(to_rebuy > 0) {
-        history$quantity <- c(history$quantity[-indices_to_remove], to_rebuy/current_price)
-        history$price <- c(history$price[-indices_to_remove], current_price)
+      for(t in tickers) {
+        # Take losses that can be taken
+        current_price <- row[[t]]
+        history <- buy_history[[t]]
+        
+        indices_to_remove <- NULL
+        for(idx in length(history$quantity):1) {
+          buy_price <- history$price[idx]
+          to_rebuy <- 0
+          if(buy_price >= current_price) {
+            q <- history$quantity[idx]
+            to_rebuy <- to_rebuy + q*current_price
+            indices_to_remove <- c(indices_to_remove, idx)
+            capital_gain_loss <- capital_gain_loss + q*(current_price-buy_price)
+          } else break
+        }
+        
+        if(to_rebuy > 0) {
+          history$quantity <- c(history$quantity[-indices_to_remove], to_rebuy/current_price)
+          history$price <- c(history$price[-indices_to_remove], current_price)
+        }
       }
       
       # Now we reweight
@@ -141,7 +154,8 @@ for(index in 1:dim(df)[1]) {
     }
   }
   
-  if(do_taxes()){
+  if(tax_time){
+    print(sprintf('capital gain/loss: %f', capital_gain_loss))
    if(capital_gain_loss > 0) {
      tax_to_pay <- capital_gains_tax * capital_gain_loss
      capital_gain_loss <- 0
@@ -160,7 +174,11 @@ for(index in 1:dim(df)[1]) {
   
   # Calculate investment value
   quantities <- calculate_quantities(buy_history)
-  total_value <- calculate_total_value(quantities, row) - max(capital_gain_loss,0)*capital_gains_tax
+  tax_to_pay <- max(capital_gain_loss,0)*capital_gains_tax
+  print(sprintf('Accrued tax of %f on %s', tax_to_pay, current_date))
+  total_value <- calculate_total_value(quantities, row) - tax_to_pay
   values <- c(values, total_value)
 }
+
+plot(df$Date, values, type='l')
 
