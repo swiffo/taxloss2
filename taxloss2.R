@@ -1,17 +1,9 @@
 source('taxlosslib.R')
 
-do_harvest <- T
 capital_gains_tax <- 0.25
 
 tickers <- c('SPY', 'EZU', 'GDX')
-intended_weights <- list()
-for(t in tickers)
-  intended_weights[t] <- 1/length(tickers)
-start_value <- 1e6
-
 df <- multiple_ticker_close_values(tickers, 2009)
-
-first_row <- df[1,]
 
 buy_history <- list()
 for(t in tickers) {
@@ -21,9 +13,12 @@ for(t in tickers) {
   buy_history[[t]] <- list(quantity=quantity, price=price)
 }
 
-current_year <- format(first_row$Date, '%Y')
+current_year <- format(df[1,'Date'], '%Y')
 capital_gain_loss <- 0 
 
+#' do_rebalancing
+#' 
+#' Returns TRUE/FALSE depending on whether the portfolio should be rebalanced.
 do_rebalancing <- function(weights) {
   max_weight <- NULL
   min_weight <- NULL
@@ -125,68 +120,85 @@ harvest <- function(current_prices) {
   }
 }
 
-values <- NULL
-pretax_values <- NULL
-gain_loss_history <- NULL
-taxes_paid <- NULL
-for(index in 1:dim(df)[1]) {
-  row <- df[index,]
-  current_date <- row$Date
-  current_quantities <- calculate_quantities(buy_history)
-  current_weights <- calculate_weights(current_quantities, row)
+run_simulation <- function(
+ tickers, # vector of tickers
+ do_harvest=TRUE # whether to do tax-loss harvesting
+) {  
+  # Equi-weighted portfolio
+  intended_weights <- sapply(tickers, function(x) 1/length(tickers))
+  start_value <- 1e6
   
-  tax_time <- do_taxes(current_date) #Remembers year so can only be called once per date
-  gain_loss_history <- c(gain_loss_history, capital_gain_loss)
-  
-  # Rebalance portfolio on sunny days
-  if(do_rebalancing(current_weights) || tax_time) {
-    print(sprintf('Rebalancing on %s', current_date))
-    total_value <- calculate_total_value(current_quantities, row)
+  values <- NULL # Vector of values assuming the portfolio was terminated (and thus subject to tax)
+  pretax_values <- NULL # Vector of current value of portfolio (pre-tax)
+  gain_loss_history <- NULL # Vector of accumulated capital gains/losses
+  taxes_paid <- NULL # Vector of the taxes paid (variable length)
+  for(index in 1:dim(df)[1]) {
+    row <- df[index,]
+    current_date <- row$Date
+    current_quantities <- calculate_quantities(buy_history)
+    current_weights <- calculate_weights(current_quantities, row)
     
-    if(do_harvest) {
-     harvest(row)
-    }  
+    tax_time <- do_taxes(current_date) #Remembers year so can only be called once per date
+    gain_loss_history <- c(gain_loss_history, capital_gain_loss)
     
-    # Now we rebalance
-    for(t in tickers) {
-      intended_quantity <- total_value * intended_weights[[t]] / row[[t]]
-      to_buy_quantity <- intended_quantity - current_quantities[[t]]
-      current_price <- row[[t]]
+    # Rebalance portfolio on sunny days
+    if(do_rebalancing(current_weights) || tax_time) {
+      print(sprintf('Rebalancing on %s', current_date))
+      total_value <- calculate_total_value(current_quantities, row)
       
-      transact_in_ticker(t, to_buy_quantity, current_price) 
+      if(do_harvest) {
+        harvest(row)
+      }  
+      
+      # Now we rebalance
+      for(t in tickers) {
+        intended_quantity <- total_value * intended_weights[[t]] / row[[t]]
+        to_buy_quantity <- intended_quantity - current_quantities[[t]]
+        current_price <- row[[t]]
+        
+        transact_in_ticker(t, to_buy_quantity, current_price) 
+      }
     }
+    
+    if(tax_time){
+      print(sprintf('Taxable on %s: %f', current_date, capital_gain_loss))
+      if(capital_gain_loss > 0) {
+        tax_to_pay <- capital_gains_tax * capital_gain_loss
+        taxes_paid <- c(taxes_paid, tax_to_pay)
+        print(sprintf('Paid tax of %f on %s', tax_to_pay, current_date))
+        
+        capital_gain_loss <- 0
+        
+        current_quantities <- calculate_quantities(buy_history)
+        current_value <- calculate_total_value(current_quantities, row)
+        if(tax_to_pay > current_value)
+          stop( "Not enough money to pay tax")
+        
+        tax_per_ticker <- tax_to_pay / length(tickers)
+        
+        for(t in tickers) {
+          current_price <- row[[t]]
+          transact_in_ticker(t, -tax_per_ticker/current_price, current_price)
+        }
+      } 
+    }
+    
+    # Calculate investment value
+    quantities <- calculate_quantities(buy_history)
+    tax_to_pay <- max(capital_gain_loss,0)*capital_gains_tax
+    total_value <- calculate_total_value(quantities, row) - tax_to_pay
+    values <- c(values, total_value)
+    pretax_values <- c(pretax_values, calculate_total_value(quantities, row))
   }
   
-  if(tax_time){
-    print(sprintf('Taxable on %s: %f', current_date, capital_gain_loss))
-   if(capital_gain_loss > 0) {
-     tax_to_pay <- capital_gains_tax * capital_gain_loss
-     taxes_paid <- c(taxes_paid, tax_to_pay)
-     print(sprintf('Paid tax of %f on %s', tax_to_pay, current_date))
-     
-     capital_gain_loss <- 0
-     
-     current_quantities <- calculate_quantities(buy_history)
-     current_value <- calculate_total_value(current_quantities, row)
-     if(tax_to_pay > current_value)
-       stop( "Not enough money to pay tax")
-     
-     tax_per_ticker <- tax_to_pay / length(tickers)
-     
-     for(t in tickers) {
-       current_price <- row[[t]]
-       transact_in_ticker(t, -tax_per_ticker/current_price, current_price)
-     }
-   } 
-  }
-  
-  # Calculate investment value
-  quantities <- calculate_quantities(buy_history)
-  tax_to_pay <- max(capital_gain_loss,0)*capital_gains_tax
-  total_value <- calculate_total_value(quantities, row) - tax_to_pay
-  values <- c(values, total_value)
-  pretax_values <- c(pretax_values, calculate_total_value(quantities, row))
+  list(
+    dates=df$Date,
+    values=values,
+    gain_loss_history=gain_loss_history,
+    taxes_paid=taxes_paid
+  )
 }
 
-plot(df$Date, values, type='l')
+output <- run_simulation(tickers)
+plot(output$dates, output$values, type='l')
 
