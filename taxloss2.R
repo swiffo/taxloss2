@@ -48,6 +48,9 @@ do_taxes <- function(date) {
   return(FALSE)
 }
 
+#' calculate_total_value
+#' 
+#' Returns total portfolio value based on input quantities and prices.
 calculate_total_value <- function(quantities, prices) { 
   total <- 0
   for(t in tickers) 
@@ -56,6 +59,10 @@ calculate_total_value <- function(quantities, prices) {
   total
 }
 
+#' transact_in_ticker
+#' 
+#' Buys or sells in given ticker the stated quantity at the stated price.
+#' NOTE: This modifies 'capital_gain_loss' and 'buy_history' in the wider world.
 transact_in_ticker <- function(ticker, quantity, price) {
   history <- buy_history[[ticker]]
   if(quantity>0) {
@@ -83,9 +90,6 @@ transact_in_ticker <- function(ticker, quantity, price) {
       history$price <- history$price[-indices_to_remove]
     }
   }
-  
-  if(min(history$quantity) <= 0)
-    stop('Oh, dear. Negative quantity in buy history.')
   
   buy_history[[ticker]] <<- history #Global assignment
 }
