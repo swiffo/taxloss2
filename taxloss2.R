@@ -13,7 +13,6 @@ for(t in tickers) {
   buy_history[[t]] <- list(quantity=quantity, price=price)
 }
 
-current_year <- format(df[1,'Date'], '%Y')
 capital_gain_loss <- 0 
 
 #' do_rebalancing
