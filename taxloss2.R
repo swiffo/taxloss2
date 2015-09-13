@@ -85,7 +85,7 @@ transact_in_ticker <- function(ticker, quantity, price) {
       history$price <- history$price[-indices_to_remove]
     }
   }
-  
+  print(sprintf('cap gain loss after transaction: %f', capital_gain_loss))
   buy_history[[ticker]] <<- history #Global assignment
 }
 
@@ -158,6 +158,7 @@ run_simulation <- function(
         
         transact_in_ticker(t, to_buy_quantity, current_price) 
       }
+      print(sprintf('cap gain/loss after rebal on %s: %f', current_date, capital_gain_loss))
     }
     
     if(tax_time){
@@ -167,7 +168,7 @@ run_simulation <- function(
         taxes_paid <- c(taxes_paid, tax_to_pay)
         print(sprintf('Paid tax of %f on %s', tax_to_pay, current_date))
         
-        capital_gain_loss <- 0
+        capital_gain_loss <<- 0
         
         current_quantities <- calculate_quantities(buy_history)
         current_value <- calculate_total_value(current_quantities, row)
@@ -199,6 +200,6 @@ run_simulation <- function(
   )
 }
 
-output <- run_simulation(tickers)
+output <- run_simulation(tickers, do_harvest=FALSE)
 plot(output$dates, output$values, type='l')
 
