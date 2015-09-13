@@ -1,11 +1,11 @@
 source('taxlosslib.R')
 
 capital_gains_tax <- 0.25
+capital_gain_loss <- NULL # Simply ensure the variable is in this scope
 buy_history <- NULL # Simply ensure the variable is in this scope
 
 
 tickers <- c('SPY', 'EZU', 'GDX')
-df <- multiple_ticker_close_values(tickers, 2009) # Can be moved inside loop
 
 #' set_up_buyhistory
 #' 
@@ -21,7 +21,6 @@ set_up_buyhistory <- function(target_weights, prices, value=1e6) {
   
   buy_history <<- hist # Global assignment
 }
-capital_gain_loss <- 0 
 
 #' do_rebalancing
 #' 
@@ -155,11 +154,14 @@ run_simulation <- function(
   start_value <- 1e6
   
   set_up_buyhistory(intended_weights, df[1,])
+  capital_gain_loss <<- 0 
+  df <- multiple_ticker_close_values(tickers, 2009) 
   
   values <- NULL # Vector of values assuming the portfolio was terminated (and thus subject to tax)
   pretax_values <- NULL # Vector of current value of portfolio (pre-tax)
   gain_loss_history <- NULL # Vector of accumulated capital gains/losses
   taxes_paid <- NULL # Vector of the taxes paid (variable length)
+  
   for(index in 1:dim(df)[1]) {
     row <- df[index,]
     current_date <- row$Date
