@@ -6,6 +6,7 @@ buy_history <- NULL # Simply ensure the variable is in this scope
 
 
 tickers <- c('SPY', 'EZU', 'GDX')
+tickers <- c('VTI', 'VEA', 'VWO', 'VIG', 'XLE')
 
 #' set_up_buyhistory
 #' 
@@ -15,7 +16,7 @@ set_up_buyhistory <- function(target_weights, prices, value=1e6) {
   tickers <- names(target_weights)
   for(t in tickers) {
     price <- prices[[t]]
-    quantity <- start_value / price * target_weights[[t]]
+    quantity <- value / price * target_weights[[t]]
     hist[[t]] <- list(quantity=quantity, price=price)
   }
   
@@ -149,13 +150,13 @@ run_simulation <- function(
  tickers, # vector of tickers
  do_harvest=TRUE # whether to do tax-loss harvesting
 ) {  
+  df <- multiple_ticker_close_values(tickers, 2009) 
+  
   # Equi-weighted portfolio
   intended_weights <- sapply(tickers, function(x) 1/length(tickers))
-  start_value <- 1e6
   
   set_up_buyhistory(intended_weights, df[1,])
   capital_gain_loss <<- 0 
-  df <- multiple_ticker_close_values(tickers, 2009) 
   
   values <- NULL # Vector of values assuming the portfolio was terminated (and thus subject to tax)
   pretax_values <- NULL # Vector of current value of portfolio (pre-tax)
@@ -229,6 +230,6 @@ run_simulation <- function(
   )
 }
 
-output <- run_simulation(tickers, do_harvest=FALSE)
+output <- run_simulation(tickers, do_harvest=TRUE)
 plot(output$dates, output$values, type='l')
 
