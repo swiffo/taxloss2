@@ -3,7 +3,6 @@ library(dplyr)
 #' single_ticker_close_values
 #'
 #' Returns data frame with columns 'Date' and 'Close' for input ticker.
-#' Input: from_year should be a string, e.g., '2005'
 single_ticker_close_values <- function(ticker, from_year) {
   URL <- sprintf('http://ichart.finance.yahoo.com/table.csv?s=%s&a=1&b=1&c=%d&g=d&ignore=.csv', ticker, from_year)
   data <- read.csv(URL, stringsAsFactors=FALSE)
