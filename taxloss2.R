@@ -4,13 +4,13 @@ do_harvest <- T
 
 capital_gains_tax <- 0.25
 
-tickers <- c('SPY', 'GDX', 'EEM')
+tickers <- c('SPY', 'EZU')
 intended_weights <- list()
 for(t in tickers)
   intended_weights[t] <- 1/length(tickers)
 start_value <- 1e6
 
-df <- multiple_ticker_close_values(tickers, 2014)
+df <- multiple_ticker_close_values(tickers, 2009)
 
 first_row <- df[1,]
 
@@ -56,7 +56,7 @@ do_reweighting <- function(date,quantities) {
   }
   lapply(weights, maxmin)
   
-  max_weight - min_weight > 0.04
+  max_weight - min_weight > 0.02
 } 
 
 last_tax_year <- ""
@@ -81,7 +81,6 @@ calculate_total_value <- function(quantities, prices) {
 
 transact_in_ticker <- function(ticker, quantity, price) {
   history <- buy_history[[ticker]]
-  print(sprintf('Transacting %f in %s (gl=%f)', quantity, ticker, -quantity*(price-history$price[idx])))
   if(quantity>0) {
     history$quantity <- c(history$quantity, quantity)
     history$price    <- c(history$price, price)
@@ -92,12 +91,10 @@ transact_in_ticker <- function(ticker, quantity, price) {
       transaction_p <- history$price[idx]
       
       if(transaction_q > -quantity) {
-        print(sprintf('partial sell in %s: %f of %f', ticker, quantity, q))
         history$quantity[idx] <- transaction_q + quantity
         capital_gain_loss <<- capital_gain_loss + (-quantity)*(price-transaction_p) # Global assignment
         break
       } else {
-        print(sprintf('full sell in %s: %f', ticker, quantity) )
         indices_to_remove <- c(indices_to_remove, idx)
         quantity <- quantity + transaction_q #remember quantity < 0; bring closer to 0
         capital_gain_loss <<- capital_gain_loss + transaction_q*(price-transaction_p) # Global assignment      
@@ -110,15 +107,53 @@ transact_in_ticker <- function(ticker, quantity, price) {
     }
   }
   
+  if(min(history$quantity) <= 0)
+    stop('Oh, dear. Negative quantity in buy history.')
+  
   buy_history[[ticker]] <<- history #Global assignment
 }
 
+harvest <- function(current_prices) {
+  for(t in tickers) {
+    history <- buy_history[[t]]  
+    price <- current_prices[[t]]
+    
+    buys_to_remove <- NULL
+    quantity_to_buy <- 0
+    for(idx in length(history$quantity):1) {
+      bought_price <- history$price[idx]
+      bought_quantity <- history$quantity[idx]
+      
+      if(bought_price > price) {
+        buys_to_remove <- c(buys_to_remove, idx)
+        quantity_to_buy <- quantity_to_buy + bought_quantity
+        
+        # Accumulate capital losses
+        capital_gain_loss <<- capital_gain_loss + bought_quantity*(price-bought_price) # Global
+      } else break
+    }
+    
+    # If we discovered anything to sell out, sell and rebuy
+    if(!is.null(buys_to_remove)) {
+      history$quantity <- history$quantity[-buys_to_remove]
+      history$price <- history$price[-buys_to_remove]
+      
+      buy_history[[t]] <<- history # Global
+      transact_in_ticker(t, quantity_to_buy, price) # Now rebuy the sold out quantity
+    }
+  }
+}
+
 values <- NULL
+untaxed_values <- NULL
+gain_loss_history <- NULL
 for(index in 1:dim(df)[1]) {
   row <- df[index,]
   current_date <- row$Date
   current_quantities <- calculate_quantities(buy_history)
   tax_time <- do_taxes(current_date) #Remembers year so can only be called once per date
+#   print(sprintf('Gain/loss on %s: %f', current_date, capital_gain_loss))
+  gain_loss_history <- c(gain_loss_history, capital_gain_loss)
   
   if(do_reweighting(current_date, current_quantities) || tax_time) {
     print(sprintf('Reweighing on %s', current_date))
@@ -128,36 +163,17 @@ for(index in 1:dim(df)[1]) {
     total_value        <- calculate_total_value(current_quantities, row)
     
     if(do_harvest) {
-      for(t in tickers) {
-        # Take losses that can be taken
-        current_price <- row[[t]]
-        history <- buy_history[[t]]
-        
-        indices_to_remove <- NULL
-        to_rebuy_q <- 0
-        for(idx in length(history$quantity):1) {
-          buy_price <- history$price[idx]
-          if(buy_price >= current_price) {
-            q <- history$quantity[idx]
-            to_rebuy_q <- to_rebuy_q + q
-            indices_to_remove <- c(indices_to_remove, idx)
-            capital_gain_loss <- capital_gain_loss + q*(current_price-buy_price)
-            print(sprintf('rebalancing %s: gl=%f', t, q*(current_price-buy_price)))
-          } else break
-        }
-        
-        if(to_rebuy_q > 0) {
-          history$quantity <- c(history$quantity[-indices_to_remove], to_rebuy_q)
-          history$price <- c(history$price[-indices_to_remove], current_price)
-        }
-      }
+     harvest(row)
     }  
-    # Now we reweight
-    intended_quantity <- total_value * intended_weights[[t]] / row[[t]]
-    to_buy_quantity <- intended_quantity - current_quantities[[t]]
     
-    print(sprintf('to buy quantity: %f', to_buy_quantity))
-    transact_in_ticker(t, to_buy_quantity, current_price) 
+    # Now we reweight
+    for(t in tickers) {
+      intended_quantity <- total_value * intended_weights[[t]] / row[[t]]
+      to_buy_quantity <- intended_quantity - current_quantities[[t]]
+      
+      print(sprintf('to buy quantity on %s: %f', t, to_buy_quantity))
+      transact_in_ticker(t, to_buy_quantity, current_price) 
+    }
   }
   
   if(tax_time){
@@ -166,6 +182,8 @@ for(index in 1:dim(df)[1]) {
      tax_to_pay <- capital_gains_tax * capital_gain_loss
      capital_gain_loss <- 0
      
+     current_quantities <- calculate_quantities(buy_history)
+     current_value <- calculate_total_value(current_quantities, row)
      if(tax_to_pay > current_value)
        stop( "Not enough money to pay tax")
      
@@ -178,12 +196,12 @@ for(index in 1:dim(df)[1]) {
    } 
   }
   
-  print(sprintf('gl on %s: %f', current_date, capital_gain_loss))
   # Calculate investment value
   quantities <- calculate_quantities(buy_history)
   tax_to_pay <- max(capital_gain_loss,0)*capital_gains_tax
   total_value <- calculate_total_value(quantities, row) - tax_to_pay
   values <- c(values, total_value)
+  untaxed_values <- c(untaxed_values, calculate_total_value(quantities, row))
 }
 
 plot(df$Date, values, type='l')
