@@ -53,6 +53,25 @@ calculate_total_value <- function(quantities, prices) {
   total
 }
 
+calculate_termination_value <- function(buy_history, prices, capital_gain_loss) {
+  quantities <- calculate_quantities(buy_history)
+  total_value <- calculate_total_value(quantities, prices)
+  
+  PNL <- 0
+  
+  for(t in tickers) {
+    hist <- buy_history[[t]]
+    current_price <- prices[[t]]
+    for(idx in 1:length(hist$quantity)) {
+      PNL <- PNL + hist$quantity[idx] * (current_price - hist$price[idx])
+    }
+  }
+  
+  tax_to_pay <- max(capital_gain_loss + PNL,0)*capital_gains_tax
+  
+  total_value - tax_to_pay
+}
+
 #' transact_in_ticker
 #' 
 #' Buys or sells in given ticker the stated quantity at the stated price.
@@ -185,8 +204,7 @@ run_simulation <- function(
     
     # Calculate investment value
     quantities <- calculate_quantities(buy_history)
-    tax_to_pay <- max(capital_gain_loss,0)*capital_gains_tax
-    total_value <- calculate_total_value(quantities, row) - tax_to_pay
+    total_value <- calculate_termination_value(buy_history, row, capital_gain_loss)
     values <- c(values, total_value)
     pretax_values <- c(pretax_values, calculate_total_value(quantities, row))
   }
