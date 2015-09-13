@@ -30,7 +30,7 @@ do_rebalancing <- function(weights) {
   max_weight - min_weight > 0.05
 } 
 
-last_tax_year <- ""
+last_tax_year <- format(df[1,'Date'],'%Y')
 do_taxes <- function(date) {
   current_year <- format(date,'%Y')
   
