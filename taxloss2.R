@@ -1,7 +1,6 @@
 source('taxlosslib.R')
 
-do_harvest <- F
-
+do_harvest <- T
 capital_gains_tax <- 0.25
 
 tickers <- c('SPY', 'EZU', 'GDX')
@@ -22,32 +21,10 @@ for(t in tickers) {
   buy_history[[t]] <- list(quantity=quantity, price=price)
 }
 
-calculate_quantities <- function(buy_history) {
-  lapply(buy_history, function(x) sum(x$quantity))
-}
-
 current_year <- format(first_row$Date, '%Y')
-
 capital_gain_loss <- 0 
 
-calculate_weights <- function(quantities, Date) { 
-  prices <- df[df$Date==Date,]
-  weights <- list()
-  total <- 0
-  
-  for(t in tickers) {
-    weights[t] <- quantities[[t]] * prices[t]
-    total <- total+weights[[t]]
-  }
-  
-  lapply(weights, function(v) v/total)  
-}
-
-
-
-do_reweighting <- function(date,quantities) {
-  weights <- calculate_weights(quantities, date)
-  
+do_rebalancing <- function(weights) {
   max_weight <- NULL
   min_weight <- NULL
   maxmin <- function(w) {
@@ -145,40 +122,39 @@ harvest <- function(current_prices) {
 }
 
 values <- NULL
-untaxed_values <- NULL
+pretax_values <- NULL
 gain_loss_history <- NULL
 taxes_paid <- NULL
 for(index in 1:dim(df)[1]) {
   row <- df[index,]
   current_date <- row$Date
   current_quantities <- calculate_quantities(buy_history)
+  current_weights <- calculate_weights(current_quantities, row)
+  
   tax_time <- do_taxes(current_date) #Remembers year so can only be called once per date
-#   print(sprintf('Gain/loss on %s: %f', current_date, capital_gain_loss))
   gain_loss_history <- c(gain_loss_history, capital_gain_loss)
   
-  if(do_reweighting(current_date, current_quantities) || tax_time) {
-    print(sprintf('Reweighing on %s', current_date))
-    
-    current_quantities <- calculate_quantities(buy_history)
-    current_weights    <- calculate_weights(current_quantities, current_date)
-    total_value        <- calculate_total_value(current_quantities, row)
+  # Rebalance portfolio on sunny days
+  if(do_rebalancing(current_weights) || tax_time) {
+    print(sprintf('Rebalancing on %s', current_date))
+    total_value <- calculate_total_value(current_quantities, row)
     
     if(do_harvest) {
      harvest(row)
     }  
     
-    # Now we reweight
+    # Now we rebalance
     for(t in tickers) {
       intended_quantity <- total_value * intended_weights[[t]] / row[[t]]
       to_buy_quantity <- intended_quantity - current_quantities[[t]]
+      current_price <- row[[t]]
       
-#       print(sprintf('to buy quantity on %s: %f', t, to_buy_quantity))
       transact_in_ticker(t, to_buy_quantity, current_price) 
     }
   }
   
   if(tax_time){
-    print(sprintf('capital gain/loss: %f', capital_gain_loss))
+    print(sprintf('Taxable on %s: %f', current_date, capital_gain_loss))
    if(capital_gain_loss > 0) {
      tax_to_pay <- capital_gains_tax * capital_gain_loss
      taxes_paid <- c(taxes_paid, tax_to_pay)
@@ -205,7 +181,7 @@ for(index in 1:dim(df)[1]) {
   tax_to_pay <- max(capital_gain_loss,0)*capital_gains_tax
   total_value <- calculate_total_value(quantities, row) - tax_to_pay
   values <- c(values, total_value)
-  untaxed_values <- c(untaxed_values, calculate_total_value(quantities, row))
+  pretax_values <- c(pretax_values, calculate_total_value(quantities, row))
 }
 
 plot(df$Date, values, type='l')
