@@ -1,10 +1,10 @@
 source('taxlosslib.R')
 
-do_harvest <- T
+do_harvest <- F
 
 capital_gains_tax <- 0.25
 
-tickers <- c('SPY', 'EZU')
+tickers <- c('SPY', 'EZU', 'GDX')
 intended_weights <- list()
 for(t in tickers)
   intended_weights[t] <- 1/length(tickers)
@@ -56,7 +56,7 @@ do_reweighting <- function(date,quantities) {
   }
   lapply(weights, maxmin)
   
-  max_weight - min_weight > 0.02
+  max_weight - min_weight > 0.05
 } 
 
 last_tax_year <- ""
@@ -147,6 +147,7 @@ harvest <- function(current_prices) {
 values <- NULL
 untaxed_values <- NULL
 gain_loss_history <- NULL
+taxes_paid <- NULL
 for(index in 1:dim(df)[1]) {
   row <- df[index,]
   current_date <- row$Date
@@ -171,7 +172,7 @@ for(index in 1:dim(df)[1]) {
       intended_quantity <- total_value * intended_weights[[t]] / row[[t]]
       to_buy_quantity <- intended_quantity - current_quantities[[t]]
       
-      print(sprintf('to buy quantity on %s: %f', t, to_buy_quantity))
+#       print(sprintf('to buy quantity on %s: %f', t, to_buy_quantity))
       transact_in_ticker(t, to_buy_quantity, current_price) 
     }
   }
@@ -180,6 +181,9 @@ for(index in 1:dim(df)[1]) {
     print(sprintf('capital gain/loss: %f', capital_gain_loss))
    if(capital_gain_loss > 0) {
      tax_to_pay <- capital_gains_tax * capital_gain_loss
+     taxes_paid <- c(taxes_paid, tax_to_pay)
+     print(sprintf('Paid tax of %f on %s', tax_to_pay, current_date))
+     
      capital_gain_loss <- 0
      
      current_quantities <- calculate_quantities(buy_history)
@@ -191,7 +195,7 @@ for(index in 1:dim(df)[1]) {
      
      for(t in tickers) {
        current_price <- row[[t]]
-       transact_in_ticker(t, tax_per_ticker/current_price, current_price)
+       transact_in_ticker(t, -tax_per_ticker/current_price, current_price)
      }
    } 
   }
