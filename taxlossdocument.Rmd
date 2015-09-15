@@ -342,7 +342,7 @@ print_analysis <- function(
   tax_rate=0.25,
   starting_year=2009
 ) { 
-  data <- multiple_ticker_close_values(c('SPY','EZU', 'GDX'), 2009 )
+  data <- multiple_ticker_close_values(tickers, starting_year )
   data <- melt(data, id.vars='Date', variable.name='Ticker', value.name='Level')
   ticker_plot <- ggplot(data) + aes(x=Date, y=Level, colour=Ticker) + geom_line() + ggtitle('Ticker Levels')
   print(ticker_plot)
@@ -383,6 +383,12 @@ print_analysis <- function(
 ```
 
 ## Various Attempts
+### One
 ```{r}
 print_analysis(c('SPY', 'EZU', 'GDX'),starting_year=2009)
+```
+
+### Two
+```{r}
+print_analysis(c('VTI', 'VEA', 'VWO', 'VIG', 'XLE'),starting_year=2009)
 ```

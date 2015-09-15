@@ -356,7 +356,7 @@ print_analysis <- function(
   tax_rate=0.25,
   starting_year=2009
 ) { 
-  data <- multiple_ticker_close_values(c('SPY','EZU', 'GDX'), 2009 )
+  data <- multiple_ticker_close_values(tickers, starting_year )
   data <- melt(data, id.vars='Date', variable.name='Ticker', value.name='Level')
   ticker_plot <- ggplot(data) + aes(x=Date, y=Level, colour=Ticker) + geom_line() + ggtitle('Ticker Levels')
   print(ticker_plot)
@@ -410,4 +410,19 @@ print_analysis(c('SPY', 'EZU', 'GDX'),starting_year=2009)
 ## [1] "Yield (continuous compounding) with harvesting: 0.026168"
 ## [1] "Yield (continuous compounding) without harvesting: 0.024368"
 ## [1] "Yearly difference in basis points: 18"
+```
+
+
+```r
+print_analysis(c('VTI', 'VEA', 'VWO', 'VIG', 'XLE'),starting_year=2009)
+```
+
+![](taxlossdocument_files/figure-html/unnamed-chunk-6-1.png) ![](taxlossdocument_files/figure-html/unnamed-chunk-6-2.png) 
+
+```
+## [1] "Value went from 1000000 to 1607909 with tax harvesting"
+## [1] "Value went from 1000000 to 1607589 without tax harvesting"
+## [1] "Yield (continuous compounding) with harvesting: 0.071830"
+## [1] "Yield (continuous compounding) without harvesting: 0.071800"
+## [1] "Yearly difference in basis points: 0"
 ```
