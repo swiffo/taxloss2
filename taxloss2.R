@@ -1,4 +1,5 @@
 library(dplyr)
+library(reshape2)
 
 capital_gains_tax <- 0.25
 capital_gain_loss <- NULL # Simply ensure the variable is in this scope
@@ -230,9 +231,10 @@ run_simulation <- function(
  tickers, # vector of tickers
  do_harvest=TRUE, # whether to do tax-loss harvesting
  starting_value=1e6,
- tax_rate=0.25
+ tax_rate=0.25,
+ starting_year=2009
 ) {  
-  df <- multiple_ticker_close_values(tickers, 2009) 
+  df <- multiple_ticker_close_values(tickers, starting_year) 
   
   # Equi-weighted portfolio
   intended_weights <- sapply(tickers, function(x) 1/length(tickers))
@@ -309,6 +311,44 @@ run_simulation <- function(
     gain_loss_history=gain_loss_history,
     taxes_paid=taxes_paid
   )
+}
+
+print_analysis <- function(
+  tickers, # vector of tickers
+  starting_value=1e6,
+  tax_rate=0.25,
+  starting_year=2009
+) { 
+  data <- multiple_ticker_close_values(c('SPY','EZU', 'GDX'), 2009 )
+  data <- melt(data, id.vars='Date', variable.name='Ticker', value.name='Level')
+  ticker_plot <- ggplot(data) + aes(x=Date, y=Level, colour=Ticker) + geom_line() + ggtitle('Ticker Levels')
+  print(ticker_plot)
+  
+  harvest  <- run_simulation(tickers, do_harvest=TRUE, starting_value=starting_value, tax_rate=tax_rate, starting_year=starting_year)
+  ordinary <- run_simulation(tickers, do_harvest=FALSE, starting_value=starting_value, tax_rate=tax_rate, starting_year=starting_year)
+  
+  value_data <- data.frame(Date=harvest$dates, Harvesting=harvest$values, Ordinary=ordinary$values)
+  value_data <- melt(value_data, id.vars='Date', variable.name='Method', value.name='Value')
+  value_plot <- ggplot(value_data) + aes(x=Date, y=Value, colour=Method) + geom_line() + ggtitle('Portfolio Value')
+  
+  print(value_plot)
+  
+  #
+  # Some simple stats
+  #
+  time_diff <- difftime(max(harvest$dates), min(harvest$dates), units='days')
+  time_in_years <- as.numeric(timediff)/365.25
+  
+  harvest_multiplier <- tail(harvest$values,n=1)/harvest$values[1]
+  ordinary_multiplier <- tail(ordinary$values,n=1)/ordinary$values[1]
+  
+  # Using continuous compounding
+  harvest_yield <- log(harvest_multiplier)/time_in_years
+  ordinary_yield <- log(ordinary_multiplier)/time_in_years
+  
+  print(sprintf('Yield (continuous compounding) with harvesting: %f', harvest_yield))
+  print(sprintf('Yield (continuous compounding) without harvesting: %f', ordinary_yield))
+  print(sprintf('Yearly difference in basis points: %f', 1e4*(harvest_yield-ordinary_yield)))
 }
 
 output <- run_simulation(c('SPY', 'EZU', 'GDX'), do_harvest=T)
