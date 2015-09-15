@@ -5,22 +5,6 @@
 
 ```r
 library(dplyr)
-```
-
-```
-## 
-## Attaching package: 'dplyr'
-## 
-## The following objects are masked from 'package:stats':
-## 
-##     filter, lag
-## 
-## The following objects are masked from 'package:base':
-## 
-##     intersect, setdiff, setequal, union
-```
-
-```r
 library(reshape2)
 library(ggplot2)
 ```
@@ -397,6 +381,7 @@ print_analysis <- function(
 ```
 
 ## Various Attempts
+### One
 
 ```r
 print_analysis(c('SPY', 'EZU', 'GDX'),starting_year=2009)
@@ -412,6 +397,7 @@ print_analysis(c('SPY', 'EZU', 'GDX'),starting_year=2009)
 ## [1] "Yearly difference in basis points: 18"
 ```
 
+### Two
 
 ```r
 print_analysis(c('VTI', 'VEA', 'VWO', 'VIG', 'XLE'),starting_year=2009)
