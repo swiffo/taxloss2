@@ -140,6 +140,10 @@ do_rebalancing <- function(weights) {
   max_weight - min_weight > 0.05
 } 
 
+#' do_taxes
+#'
+#' Returns TRUE if it's time to do taxes, otherwise "Balthazar!!!" 
+#' No, I'm kidding. Otherwise it returns FALSE.
 do_taxes <- function(date) {
   # First time called we initialize with the year.
   if(is.null(last_tax_year))
@@ -167,6 +171,10 @@ calculate_total_value <- function(quantities, prices) {
   total
 }
 
+#' calculate_termination_value
+#'
+#' How much money would you have in your hand if you threw a hissy fit and 
+#' terminated the entire portfolio right now?
 calculate_termination_value <- function(buy_history, prices, capital_gain_loss) {
   quantities <- calculate_quantities(buy_history)
   total_value <- calculate_total_value(quantities, prices)
@@ -221,6 +229,9 @@ transact_in_ticker <- function(ticker, quantity, price) {
   buy_history[[ticker]] <<- history #Global assignment
 }
 
+#' harvest
+#'
+#' Sells and rebuys (in a fictitious similar ticker) anything that has lost value since it was bought.
 harvest <- function(current_prices) {
   tickers <- names(buy_history)
   for(t in tickers) {
@@ -253,6 +264,9 @@ harvest <- function(current_prices) {
   }
 }
 
+#' run_simulation
+#'
+#' Returns list with all the data your heart desires (assuming you want a black Ford T)
 run_simulation <- function(
  tickers, # vector of tickers
  do_harvest=TRUE, # whether to do tax-loss harvesting
@@ -335,6 +349,9 @@ run_simulation <- function(
   )
 }
 
+#' print_analysis
+#' 
+#' Plots relevant graphs and outputs a few numbers.
 print_analysis <- function(
   tickers, # vector of tickers
   starting_value=1e6,
