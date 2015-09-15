@@ -66,6 +66,7 @@ img {
 
 <div id="synopsis" class="section level2">
 <h2>Synopsis</h2>
+<p>One day I may fill this out.</p>
 </div>
 <div id="code-horrors" class="section level2">
 <h2>Code Horrors</h2>
@@ -74,12 +75,13 @@ library(reshape2)
 library(ggplot2)</code></pre>
 <div id="whats-the-aim" class="section level3">
 <h3>What’s the aim</h3>
+<p>And another day this.</p>
 </div>
 <div id="the-global-scope" class="section level3">
 <h3>The Global Scope</h3>
 <p>What we need really calls for classes and objects but since I haven’t yet gotten that far in R, instead we use it’s older, prodigal brother, The Global Scope.</p>
 <p>The following variables are used for each simulation to store data that is shared and modified by the various methods. They need to be reset between each run.</p>
-<pre class="r"><code>capital_gains_tax &lt;- 0.25
+<pre class="r"><code>capital_gains_tax &lt;- NULL # Tax rate, e.g., 0.25
 capital_gain_loss &lt;- NULL # Stores what PNL is not yet taxed/used to offset gains
 buy_history &lt;- NULL # list of ticker -&gt; list of quantity and buy price (arrays of equal length)
 last_tax_year &lt;- NULL # last year we paid tax, we pay tax on the first business day of each year</code></pre>

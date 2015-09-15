@@ -1,5 +1,6 @@
 # Tax Loss Harvesting 2
 ## Synopsis
+One day I may fill this out.
 
 ## Code Horrors
 
@@ -9,7 +10,7 @@ library(reshape2)
 library(ggplot2)
 ```
 ### What's the aim
-
+And another day this.
 
 ### The Global Scope
 What we need really calls for classes and objects but since I haven't yet gotten that far in R, instead we use it's older, prodigal brother, The Global Scope.
@@ -17,7 +18,7 @@ What we need really calls for classes and objects but since I haven't yet gotten
 The following variables are used for each simulation to store data that is shared and modified by the various methods. They need to be reset between each run.
 
 ```r
-capital_gains_tax <- 0.25
+capital_gains_tax <- NULL # Tax rate, e.g., 0.25
 capital_gain_loss <- NULL # Stores what PNL is not yet taxed/used to offset gains
 buy_history <- NULL # list of ticker -> list of quantity and buy price (arrays of equal length)
 last_tax_year <- NULL # last year we paid tax, we pay tax on the first business day of each year
