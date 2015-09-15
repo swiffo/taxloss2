@@ -219,7 +219,6 @@ transact_in_ticker <- function(ticker, quantity, price) {
       history$price <- history$price[-indices_to_remove]
     }
   }
-  print(sprintf('cap gain loss after transaction: %f', capital_gain_loss))
   buy_history[[ticker]] <<- history #Global assignment
 }
 
@@ -285,7 +284,6 @@ run_simulation <- function(
     
     # Rebalance portfolio on sunny days
     if(do_rebalancing(current_weights) || tax_time) {
-      print(sprintf('Rebalancing on %s', current_date))
       total_value <- calculate_total_value(current_quantities, row)
       
       if(do_harvest) {
@@ -300,15 +298,12 @@ run_simulation <- function(
         
         transact_in_ticker(t, to_buy_quantity, current_price) 
       }
-      print(sprintf('cap gain/loss after rebal on %s: %f', current_date, capital_gain_loss))
     }
     
     if(tax_time){
-      print(sprintf('Taxable on %s: %f', current_date, capital_gain_loss))
       if(capital_gain_loss > 0) {
         tax_to_pay <- capital_gains_tax * capital_gain_loss
         taxes_paid <- c(taxes_paid, tax_to_pay)
-        print(sprintf('Paid tax of %f on %s', tax_to_pay, current_date))
         
         capital_gain_loss <<- 0
         
