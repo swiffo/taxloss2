@@ -362,16 +362,23 @@ print_analysis <- function(
   time_diff <- difftime(max(harvest$dates), min(harvest$dates), units='days')
   time_in_years <- as.numeric(time_diff)/365.25
   
-  harvest_multiplier <- tail(harvest$values,n=1)/harvest$values[1]
-  ordinary_multiplier <- tail(ordinary$values,n=1)/ordinary$values[1]
+  harvest_start <- harvest$values[1]
+  harvest_end <- tail(harvest$values,n=1)
+  harvest_multiplier <- harvest_end/harvest_start
+  
+  ordinary_start <- ordinary$values[1]
+  ordinary_end <- tail(ordinary$values,n=1)
+  ordinary_multiplier <- ordinary_end/ordinary_start
   
   # Using continuous compounding
   harvest_yield <- log(harvest_multiplier)/time_in_years
   ordinary_yield <- log(ordinary_multiplier)/time_in_years
   
+  print(sprintf('Value went from %0.f to %0.f with tax harvesting', harvest_start, harvest_end))
+  print(sprintf('Value went from %0.f to %0.f without tax harvesting', ordinary_start, ordinary_end))
   print(sprintf('Yield (continuous compounding) with harvesting: %f', harvest_yield))
   print(sprintf('Yield (continuous compounding) without harvesting: %f', ordinary_yield))
-  print(sprintf('Yearly difference in basis points: %f', 1e4*(harvest_yield-ordinary_yield)))
+  print(sprintf('Yearly difference in basis points: %0.f', 1e4*(harvest_yield-ordinary_yield)))
 }
 ```
 
