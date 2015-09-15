@@ -1,11 +1,14 @@
 library(dplyr)
 library(reshape2)
 
-capital_gains_tax <- 0.25
+capital_gains_tax <- NULL # Tax rate, e.g., 0.25 
 capital_gain_loss <- NULL # Simply ensure the variable is in this scope
 buy_history <- NULL # Simply ensure the variable is in this scope
 last_tax_year <- NULL # Ditto
 
+#' reset_global_variables
+#' 
+#' Resets the global variables. MUST be called before each run.
 reset_global_variables <- function(target_weights, prices, value=1e6, tax_rate=0.25) {
   capital_gains_tax <<- tax_rate
   capital_gain_loss <<- 0
@@ -337,7 +340,7 @@ print_analysis <- function(
   # Some simple stats
   #
   time_diff <- difftime(max(harvest$dates), min(harvest$dates), units='days')
-  time_in_years <- as.numeric(timediff)/365.25
+  time_in_years <- as.numeric(time_diff)/365.25
   
   harvest_multiplier <- tail(harvest$values,n=1)/harvest$values[1]
   ordinary_multiplier <- tail(ordinary$values,n=1)/ordinary$values[1]
